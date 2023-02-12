@@ -7,103 +7,13 @@ Chee Kay Cheong (cc4778)
 knitr::opts_chunk$set(message = FALSE, warning = FALSE)
 
 library(tidyverse)
-```
-
-    ## ── Attaching packages ─────────────────────────────────────── tidyverse 1.3.2 ──
-    ## ✔ ggplot2 3.4.1      ✔ purrr   0.3.5 
-    ## ✔ tibble  3.1.8      ✔ dplyr   1.0.10
-    ## ✔ tidyr   1.2.1      ✔ stringr 1.5.0 
-    ## ✔ readr   2.1.3      ✔ forcats 0.5.2
-
-    ## Warning: package 'ggplot2' was built under R version 4.2.2
-
-    ## Warning: package 'readr' was built under R version 4.2.2
-
-    ## Warning: package 'purrr' was built under R version 4.2.2
-
-    ## Warning: package 'dplyr' was built under R version 4.2.2
-
-    ## Warning: package 'stringr' was built under R version 4.2.2
-
-    ## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
-    ## ✖ dplyr::filter() masks stats::filter()
-    ## ✖ dplyr::lag()    masks stats::lag()
-
-``` r
 library(ggbiplot)
-```
-
-    ## Loading required package: plyr
-
-    ## Warning: package 'plyr' was built under R version 4.2.2
-
-    ## ------------------------------------------------------------------------------
-    ## You have loaded plyr after dplyr - this is likely to cause problems.
-    ## If you need functions from both plyr and dplyr, please load plyr first, then dplyr:
-    ## library(plyr); library(dplyr)
-    ## ------------------------------------------------------------------------------
-    ## 
-    ## Attaching package: 'plyr'
-    ## 
-    ## The following objects are masked from 'package:dplyr':
-    ## 
-    ##     arrange, count, desc, failwith, id, mutate, rename, summarise,
-    ##     summarize
-    ## 
-    ## The following object is masked from 'package:purrr':
-    ## 
-    ##     compact
-    ## 
-    ## Loading required package: scales
-    ## 
-    ## Attaching package: 'scales'
-    ## 
-    ## The following object is masked from 'package:purrr':
-    ## 
-    ##     discard
-    ## 
-    ## The following object is masked from 'package:readr':
-    ## 
-    ##     col_factor
-    ## 
-    ## Loading required package: grid
-
-``` r
 library(stats)
 library(factoextra)
-```
-
-    ## Warning: package 'factoextra' was built under R version 4.2.2
-
-    ## Welcome! Want to learn more? See two factoextra-related books at https://goo.gl/ve3WBa
-
-``` r
 library(cluster)
-```
-
-    ## Warning: package 'cluster' was built under R version 4.2.2
-
-``` r
 library(caret)
-```
-
-    ## Warning: package 'caret' was built under R version 4.2.2
-
-    ## Loading required package: lattice
-    ## 
-    ## Attaching package: 'caret'
-    ## 
-    ## The following object is masked from 'package:purrr':
-    ## 
-    ##     lift
-
-``` r
 library(modelr)
-```
 
-    ## Warning: package 'modelr' was built under R version 4.2.2
-
-``` r
 set.seed(123)
 ```
 
@@ -268,22 +178,58 @@ data("USArrests")
 # Checked no missing data.
 
 # Check means and SDs to determine if scaling is necessary
-colMeans(USArrests, na.rm = TRUE) %>% 
-  knitr::kable()
+colMeans(USArrests, na.rm = TRUE)
 ```
 
-|          |       x |
-|:---------|--------:|
-| Murder   |   7.788 |
-| Assault  | 170.760 |
-| UrbanPop |  65.540 |
-| Rape     |  21.232 |
+    ##   Murder  Assault UrbanPop     Rape 
+    ##    7.788  170.760   65.540   21.232
+
+``` r
+apply(USArrests, 2, sd, na.rm = TRUE)
+```
+
+    ##    Murder   Assault  UrbanPop      Rape 
+    ##  4.355510 83.337661 14.474763  9.366385
+
+Means and standard deviations are very different from each other. Center
+and scaling are needed.
+
+``` r
+US_Arrests = scale(USArrests)
+```
 
 Conduct a hierarchical clustering analysis. Be sure to specify the
 linkage method used. Within your analysis, make sure you do both of the
-following: Determine the optimal number of clusters using a clear,
-data-driven strategy. Describe the composition of each cluster in terms
-of the original input features
+following:
+
+``` r
+# Create Dissimilarity matrix
+diss.matrix = dist(US_Arrests, method = "euclidean")
+
+# Hierarchical clustering using Complete Linkage
+clusters.h = hclust(diss.matrix, method = "complete" )
+
+# Plot the obtained dendrogram
+plot(clusters.h, cex = 0.6, hang = -1)
+```
+
+![](Assignment-4_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+Determine the optimal number of clusters using a clear, data-driven
+strategy.
+
+``` r
+gap_stat = clusGap(US_Arrests, FUN = hcut, K.max = 10, B = 50)
+fviz_gap_stat(gap_stat)
+```
+
+![](Assignment-4_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+
+Describe the composition of each cluster in terms of the original input
+features
+
+``` r
+clusters = kmeans(US_Arrests, 3, nstart = 25)
+```
 
 Pretend that the data are from 2020 and not 1973. Describe one research
 question that can be addressed using the newly identified clusters.
