@@ -13,41 +13,106 @@ library(ggbiplot)
 library(stats)
 library(factoextra)
 library(cluster)
+library(caret)
+library(modelr)
+
+set.seed(123)
 ```
 
 Note: You must turn in an R-Markdown word document with your code and generated output clearly labeled.  Make sure all answers to specific questions are clearly labeled. Do not just turn in unannotated output. This assignment builds upon group work from class. You can consult with fellow students on strategies, but the document you turn in must be your own, individual work. Group members cannot turn in the same R-markdown word document.
 
 REMEMBER TO SET YOUR SEED USING 123 TO ENSURE REPRODUCIBLE RESULTS.
 
-```{r load library & set seed}
-library(tidyverse)
+ 
+# Part I: Implementing a Simple Prediction Pipeline
 
-set.seed(123)
+The New York City Department of Health administered a questionnaire on general health and physical activity among residents. Using the dataset `class4_p1.csv`, fit and evaluate two prediction models using linear regression. The aim of the models are to predict the number of days in a month an individual reported having good physical health (feature name: healthydays). A codebook is provided so you can look-up the meaning and values of each feature in the dataset. (Note the codebook lists information on features that are not included in your dataset).
+
+
+### Step 1: Load and clean dataset
+```{r}
+class4 = read_csv("./Data/class4_p1.csv") %>% 
+  janitor::clean_names() %>% 
+  select(-x1) %>% 
+  mutate(
+    chronic1 = as_factor(chronic1),
+    chronic3 = as_factor(chronic3),
+    chronic4 = as_factor(chronic4),
+    tobacco1 = as_factor(tobacco1),
+    alcohol1 = as_factor(alcohol1),
+    habits5 = as_factor(habits5),
+    habits7 = as_factor(habits7),
+    agegroup = as_factor(agegroup),
+    dem3 = as_factor(dem3),
+    dem4 = as_factor(dem4),
+    dem8 = as_factor(dem8),
+    povertygroup = as_factor(povertygroup)) %>% 
+  drop_na()
+```
+
+### Step 2: Partition data into training and testing (use a 70/30 split)
+```{r}
+train.index = createDataPartition(class4$healthydays, p = 0.7, list = FALSE)
+
+class4_train = class4[train.index, ]
+class4_test = class4[-train.index, ]
 ```
  
+Fit two prediction models using  different subsets of the features in the training data. Features can overlap in the two models, but the feature sets should not be exactly the same across models. Clearly state which features were used in the two models.
+```{r model 1}
+model_1 = lm(healthydays ~ chronic4 + gpaq8totmin + gpaq11days + habits5 + habits7 + agegroup, data = class4_train)
+summary(model_1)
 
-Part I: Implementing a Simple Prediction Pipeline
+model_2 = lm(healthydays ~ bmi + tobacco1 + alcohol1 + habits5 + habits7, data = class4_train)
+summary(model_2)
+```
 
-The New York City Department of Health administered a questionnaire on general health and physical activity among residents. Using the dataset class4_p1.csv, fit and evaluate two prediction models using linear regression. The aim of the models are to predict the number of days in a month an individual reported having good physical health (feature name: healthydays). A codebook is provided so you can look-up the meaning and values of each feature in the dataset. (Note the codebook lists information on features that are not included in your dataset).
-
-Your analytic pipeline should include the following:
-
-Perform basic data cleaning. Note which features are continuous, which are categorical and ensure they are being stored that way in your R dataset (That is, if categorical variables have been read-in as continuous variables, convert them to factors)
-Partition data into training and testing (use a 70/30 split)
- 
-
-Fit two prediction  models using  different subsets of the features in the training data. Features can overlap in the two models, but the feature sets should not be exactly the same across models. Clearly state which features were used in the two models.
 Apply both models within the test data and determine which model is the preferred prediction model using the appropriate evaluation metric(s). 
 Describe one setting (in 1-2 sentences) where the implementation of your final model would be useful.
+```{r}
+rmse(model_1, class4_test)
+rmse(model_2, class4_test)
+```
  
-
-Part II: Conducting an Unsupervised Analysis
+# Part II: Conducting an Unsupervised Analysis
 
 Using the dataset from the Group assignment Part 3 (USArrests), identify clusters using hierarchical analysis. Use an agglomerative algorithm for hierarchical clustering. Use a Euclidian distance measure to construct your dissimilarity matrix.
 
+### Step 1: Load dataset & prepare for analysis
+```{r}
+data("USArrests")
+# Checked no missing data.
+
+# Check means and SDs to determine if scaling is necessary
+colMeans(USArrests, na.rm = TRUE)
+apply(USArrests, 2, sd, na.rm = TRUE)
+```
+Means and standard deviations are very different from each other. Center and scaling are needed.
+```{r}
+US_Arrests = scale(USArrests)
+```
+
 Conduct a hierarchical clustering analysis. Be sure to specify the linkage method used. Within your analysis, make sure you do both of the following:
+```{r}
+# Create Dissimilarity matrix
+diss.matrix = dist(US_Arrests, method = "euclidean")
+
+# Hierarchical clustering using Complete Linkage
+clusters.h = hclust(diss.matrix, method = "complete" )
+
+# Plot the obtained dendrogram
+plot(clusters.h, cex = 0.6, hang = -1)
+```
 Determine the optimal number of clusters using a clear, data-driven strategy.
+```{r}
+gap_stat = clusGap(US_Arrests, FUN = hcut, K.max = 10, B = 50)
+fviz_gap_stat(gap_stat)
+```
+
 Describe the composition of each cluster in terms of the original input features
+```{r}
+clusters = kmeans(US_Arrests, 3, nstart = 25)
+```
  
 
 Pretend that the data are from 2020 and not 1973. Describe one research question that can be addressed using the newly identified clusters. Briefly comment on any scientific or ethical considerations one should review before using these clusters for your specific question. NOTE: The clusters can be used as an exposure, an outcome or a covariate.
