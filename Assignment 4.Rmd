@@ -2,17 +2,28 @@
 title: "Assignment 4"
 author: "Chee Kay Cheong (cc4778)"
 date: "2023-02-08"
-output: word_document
+output: github_document
 ---
 
-```{r setup, include = FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(ggbiplot)
+library(stats)
+library(factoextra)
+library(cluster)
 ```
 
 Note: You must turn in an R-Markdown word document with your code and generated output clearly labeled.  Make sure all answers to specific questions are clearly labeled. Do not just turn in unannotated output. This assignment builds upon group work from class. You can consult with fellow students on strategies, but the document you turn in must be your own, individual work. Group members cannot turn in the same R-markdown word document.
 
 REMEMBER TO SET YOUR SEED USING 123 TO ENSURE REPRODUCIBLE RESULTS.
 
+```{r load library & set seed}
+library(tidyverse)
+
+set.seed(123)
+```
  
 
 Part I: Implementing a Simple Prediction Pipeline
