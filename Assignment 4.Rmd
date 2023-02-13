@@ -2,7 +2,7 @@
 title: "Assignment 4"
 author: "Chee Kay Cheong (cc4778)"
 date: "2023-02-08"
-output: github_document
+output: word_document
 ---
 
 ```{r setup, message = FALSE, warning = FALSE}
@@ -18,11 +18,6 @@ library(modelr)
 set.seed(123)
 ```
 
-Note: You must turn in an R-Markdown word document with your code and generated output clearly labeled.  Make sure all answers to specific questions are clearly labeled. Do not just turn in unannotated output. This assignment builds upon group work from class. You can consult with fellow students on strategies, but the document you turn in must be your own, individual work. Group members cannot turn in the same R-markdown word document.
-
-REMEMBER TO SET YOUR SEED USING 123 TO ENSURE REPRODUCIBLE RESULTS.
-
- 
 # Part I: Implementing a Simple Prediction Pipeline
 
 The New York City Department of Health administered a questionnaire on general health and physical activity among residents. Using the dataset `class4_p1.csv`, fit and evaluate two prediction models using linear regression. The aim of the models are to predict the number of days in a month an individual reported having good physical health (feature name: `healthydays`).
