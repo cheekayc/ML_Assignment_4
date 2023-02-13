@@ -7,7 +7,6 @@ Chee Kay Cheong (cc4778)
 knitr::opts_chunk$set(message = FALSE, warning = FALSE)
 
 library(tidyverse)
-library(ggbiplot)
 library(stats)
 library(factoextra)
 library(cluster)
@@ -34,9 +33,7 @@ general health and physical activity among residents. Using the dataset
 `class4_p1.csv`, fit and evaluate two prediction models using linear
 regression. The aim of the models are to predict the number of days in a
 month an individual reported having good physical health (feature name:
-healthydays). A codebook is provided so you can look-up the meaning and
-values of each feature in the dataset. (Note the codebook lists
-information on features that are not included in your dataset).
+`healthydays`).
 
 ### Step 1: Load and clean dataset
 
@@ -63,94 +60,41 @@ class4 = read_csv("./Data/class4_p1.csv") %>%
 ### Step 2: Partition data into training and testing (use a 70/30 split)
 
 ``` r
+set.seed(123)
+
 train.index = createDataPartition(class4$healthydays, p = 0.7, list = FALSE)
 
 class4_train = class4[train.index, ]
 class4_test = class4[-train.index, ]
 ```
 
+## Problem 1
+
 Fit two prediction models using different subsets of the features in the
-training data. Features can overlap in the two models, but the feature
-sets should not be exactly the same across models. Clearly state which
-features were used in the two models.
+training data.
+
+- **Model 1**
+  - Outcome: healthydays
+  - Predictors: chronic4, gpaq8totmin, gpaq11days, habits5, habits7 &
+    agegroup
+- **Model 2**
+  - Outcome: healthydays
+  - Predictors: bmi, tobacco1, alcohol1, habits5 & habits7
 
 ``` r
 model_1 = lm(healthydays ~ chronic4 + gpaq8totmin + gpaq11days + habits5 + habits7 + agegroup, data = class4_train)
-summary(model_1)
-```
 
-    ## 
-    ## Call:
-    ## lm(formula = healthydays ~ chronic4 + gpaq8totmin + gpaq11days + 
-    ##     habits5 + habits7 + agegroup, data = class4_train)
-    ## 
-    ## Residuals:
-    ##      Min       1Q   Median       3Q      Max 
-    ## -29.9364  -0.3118   1.6832   3.5408  15.1613 
-    ## 
-    ## Coefficients:
-    ##              Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept) 26.987116   1.217104  22.173  < 2e-16 ***
-    ## chronic42    3.585501   0.779387   4.600 4.57e-06 ***
-    ## gpaq8totmin -0.001968   0.002040  -0.964 0.334992    
-    ## gpaq11days   0.108306   0.072731   1.489 0.136659    
-    ## habits52     0.044100   0.444385   0.099 0.920962    
-    ## habits53    -1.867959   0.584294  -3.197 0.001417 ** 
-    ## habits54    -3.848199   0.976720  -3.940 8.52e-05 ***
-    ## habits72    -0.385106   0.630110  -0.611 0.541176    
-    ## habits73    -1.336052   0.612274  -2.182 0.029254 *  
-    ## habits74    -3.547256   0.701825  -5.054 4.84e-07 ***
-    ## habits75    -6.040697   1.033448  -5.845 6.18e-09 ***
-    ## agegroup2   -0.900919   0.753784  -1.195 0.232197    
-    ## agegroup3   -2.584410   0.738916  -3.498 0.000483 ***
-    ## agegroup4   -4.341033   0.778890  -5.573 2.95e-08 ***
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## 
-    ## Residual standard error: 7.268 on 1523 degrees of freedom
-    ## Multiple R-squared:  0.1278, Adjusted R-squared:  0.1204 
-    ## F-statistic: 17.17 on 13 and 1523 DF,  p-value: < 2.2e-16
-
-``` r
 model_2 = lm(healthydays ~ bmi + tobacco1 + alcohol1 + habits5 + habits7, data = class4_train)
-summary(model_2)
 ```
 
-    ## 
-    ## Call:
-    ## lm(formula = healthydays ~ bmi + tobacco1 + alcohol1 + habits5 + 
-    ##     habits7, data = class4_train)
-    ## 
-    ## Residuals:
-    ##      Min       1Q   Median       3Q      Max 
-    ## -29.2591   0.1698   2.0902   3.2301  12.8006 
-    ## 
-    ## Coefficients:
-    ##             Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept) 30.70507    1.46593  20.946  < 2e-16 ***
-    ## bmi         -0.02109    0.02996  -0.704   0.4816    
-    ## tobacco12   -0.89503    1.06466  -0.841   0.4007    
-    ## tobacco13    0.27000    0.63055   0.428   0.6686    
-    ## alcohol12   -1.24884    1.13686  -1.099   0.2722    
-    ## alcohol13   -2.47696    1.10491  -2.242   0.0251 *  
-    ## habits52    -0.03642    0.45472  -0.080   0.9362    
-    ## habits53    -2.35710    0.59480  -3.963 7.75e-05 ***
-    ## habits54    -5.04178    0.98532  -5.117 3.50e-07 ***
-    ## habits72    -0.10206    0.64275  -0.159   0.8739    
-    ## habits73    -1.04508    0.62539  -1.671   0.0949 .  
-    ## habits74    -3.04183    0.71474  -4.256 2.21e-05 ***
-    ## habits75    -5.19390    1.06398  -4.882 1.16e-06 ***
-    ## ---
-    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-    ## 
-    ## Residual standard error: 7.426 on 1524 degrees of freedom
-    ## Multiple R-squared:  0.0888, Adjusted R-squared:  0.08163 
-    ## F-statistic: 12.38 on 12 and 1524 DF,  p-value: < 2.2e-16
+## Problem 2
 
 Apply both models within the test data and determine which model is the
 preferred prediction model using the appropriate evaluation metric(s).
-Describe one setting (in 1-2 sentences) where the implementation of your
-final model would be useful.
+
+We will be using **Root Mean Square Error (RMSE)** as the appropriate
+evaluation metric to compare how well the model is predicting against
+the actual values.
 
 ``` r
 rmse(model_1, class4_test)
@@ -163,6 +107,17 @@ rmse(model_2, class4_test)
 ```
 
     ## [1] 7.401421
+
+Based on the result, it appears that *Model 1* is a better model in
+predicting the number of days in a month an individual reported having
+good physical health because it has a lower RMSE value compared to Model
+2.
+
+## Problem 3
+
+One setting where the implementation of *Model 1* would be useful is
+when we hope to predict a person’s overall perceived health in a senior
+community.
 
 # Part II: Conducting an Unsupervised Analysis
 
@@ -177,7 +132,7 @@ your dissimilarity matrix.
 data("USArrests")
 # Checked no missing data.
 
-# Check means and SDs to determine if scaling is necessary
+# Check means and SDs to determine if scaling is necessary:
 colMeans(USArrests, na.rm = TRUE)
 ```
 
@@ -191,16 +146,15 @@ apply(USArrests, 2, sd, na.rm = TRUE)
     ##    Murder   Assault  UrbanPop      Rape 
     ##  4.355510 83.337661 14.474763  9.366385
 
-Means and standard deviations are very different from each other. Center
-and scaling are needed.
-
 ``` r
+# Means and standard deviations are very different from each other. Scaling is needed.
 US_Arrests = scale(USArrests)
 ```
 
-Conduct a hierarchical clustering analysis. Be sure to specify the
-linkage method used. Within your analysis, make sure you do both of the
-following:
+## Problem 4
+
+We will be conducting a hierarchical clustering analysis using the
+***complete*** linkage.
 
 ``` r
 # Create Dissimilarity matrix
@@ -213,26 +167,81 @@ clusters.h = hclust(diss.matrix, method = "complete" )
 plot(clusters.h, cex = 0.6, hang = -1)
 ```
 
-![](Assignment-4_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
-Determine the optimal number of clusters using a clear, data-driven
-strategy.
+![](Assignment-4_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+
+#### a) Determine the optimal number of clusters using ***gap-statistic*** analysis.
 
 ``` r
 gap_stat = clusGap(US_Arrests, FUN = hcut, K.max = 10, B = 50)
 fviz_gap_stat(gap_stat)
 ```
 
-![](Assignment-4_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](Assignment-4_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
-Describe the composition of each cluster in terms of the original input
-features
+Based on the result, the optimal number of clusters is *3*.
+
+#### b) Describe the composition of each cluster in terms of the original input features
 
 ``` r
 clusters = kmeans(US_Arrests, 3, nstart = 25)
+
+clusters
 ```
 
-Pretend that the data are from 2020 and not 1973. Describe one research
-question that can be addressed using the newly identified clusters.
-Briefly comment on any scientific or ethical considerations one should
-review before using these clusters for your specific question. NOTE: The
-clusters can be used as an exposure, an outcome or a covariate.
+    ## K-means clustering with 3 clusters of sizes 20, 13, 17
+    ## 
+    ## Cluster means:
+    ##       Murder    Assault   UrbanPop       Rape
+    ## 1  1.0049340  1.0138274  0.1975853  0.8469650
+    ## 2 -0.9615407 -1.1066010 -0.9301069 -0.9667633
+    ## 3 -0.4469795 -0.3465138  0.4788049 -0.2571398
+    ## 
+    ## Clustering vector:
+    ##        Alabama         Alaska        Arizona       Arkansas     California 
+    ##              1              1              1              3              1 
+    ##       Colorado    Connecticut       Delaware        Florida        Georgia 
+    ##              1              3              3              1              1 
+    ##         Hawaii          Idaho       Illinois        Indiana           Iowa 
+    ##              3              2              1              3              2 
+    ##         Kansas       Kentucky      Louisiana          Maine       Maryland 
+    ##              3              2              1              2              1 
+    ##  Massachusetts       Michigan      Minnesota    Mississippi       Missouri 
+    ##              3              1              2              1              1 
+    ##        Montana       Nebraska         Nevada  New Hampshire     New Jersey 
+    ##              2              2              1              2              3 
+    ##     New Mexico       New York North Carolina   North Dakota           Ohio 
+    ##              1              1              1              2              3 
+    ##       Oklahoma         Oregon   Pennsylvania   Rhode Island South Carolina 
+    ##              3              3              3              3              1 
+    ##   South Dakota      Tennessee          Texas           Utah        Vermont 
+    ##              2              1              1              3              2 
+    ##       Virginia     Washington  West Virginia      Wisconsin        Wyoming 
+    ##              3              3              2              2              3 
+    ## 
+    ## Within cluster sum of squares by cluster:
+    ## [1] 46.74796 11.95246 19.62285
+    ##  (between_SS / total_SS =  60.0 %)
+    ## 
+    ## Available components:
+    ## 
+    ## [1] "cluster"      "centers"      "totss"        "withinss"     "tot.withinss"
+    ## [6] "betweenss"    "size"         "iter"         "ifault"
+
+*Cluster 1* has a medium urban population size, but they have the
+greatest rate in murder, assault, and rape because all the values for
+each features are positive (\>0) and are the highest among all three
+clusters. *Cluster 2* has the smallest proportion of urban population,
+as well as the lowest crime rate because all the values for each
+features are negative (\<0) and are the smallest among all three
+clusters. *Cluster 3* has the biggest urban population. Its crime rate
+(murder, assault, rape) is not the lowest but still lower than average.
+
+## Problem 5
+
+One research question that can be addressed using the newly identified
+clusters is: What are some contributing elements to the high crime rate
+in the Cluster 1 states?
+
+Before using these clusters for the above research question, we should
+be careful for not including the state name in the cluster to avoid
+defaming certain states.

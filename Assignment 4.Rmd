@@ -9,7 +9,6 @@ output: github_document
 knitr::opts_chunk$set(message = FALSE, warning = FALSE)
 
 library(tidyverse)
-library(ggbiplot)
 library(stats)
 library(factoextra)
 library(cluster)
@@ -26,8 +25,7 @@ REMEMBER TO SET YOUR SEED USING 123 TO ENSURE REPRODUCIBLE RESULTS.
  
 # Part I: Implementing a Simple Prediction Pipeline
 
-The New York City Department of Health administered a questionnaire on general health and physical activity among residents. Using the dataset `class4_p1.csv`, fit and evaluate two prediction models using linear regression. The aim of the models are to predict the number of days in a month an individual reported having good physical health (feature name: healthydays). A codebook is provided so you can look-up the meaning and values of each feature in the dataset. (Note the codebook lists information on features that are not included in your dataset).
-
+The New York City Department of Health administered a questionnaire on general health and physical activity among residents. Using the dataset `class4_p1.csv`, fit and evaluate two prediction models using linear regression. The aim of the models are to predict the number of days in a month an individual reported having good physical health (feature name: `healthydays`).
 
 ### Step 1: Load and clean dataset
 ```{r}
@@ -52,28 +50,47 @@ class4 = read_csv("./Data/class4_p1.csv") %>%
 
 ### Step 2: Partition data into training and testing (use a 70/30 split)
 ```{r}
+set.seed(123)
+
 train.index = createDataPartition(class4$healthydays, p = 0.7, list = FALSE)
 
 class4_train = class4[train.index, ]
 class4_test = class4[-train.index, ]
 ```
  
-Fit two prediction models using  different subsets of the features in the training data. Features can overlap in the two models, but the feature sets should not be exactly the same across models. Clearly state which features were used in the two models.
-```{r model 1}
+## Problem 1
+
+Fit two prediction models using  different subsets of the features in the training data.
+
+* **Model 1**
+  * Outcome: healthydays
+  * Predictors: chronic4, gpaq8totmin, gpaq11days, habits5, habits7 & agegroup
+  
+* **Model 2**
+  * Outcome: healthydays
+  * Predictors: bmi, tobacco1, alcohol1, habits5 & habits7 
+  
+```{r models}
 model_1 = lm(healthydays ~ chronic4 + gpaq8totmin + gpaq11days + habits5 + habits7 + agegroup, data = class4_train)
-summary(model_1)
 
 model_2 = lm(healthydays ~ bmi + tobacco1 + alcohol1 + habits5 + habits7, data = class4_train)
-summary(model_2)
 ```
 
+## Problem 2
+
 Apply both models within the test data and determine which model is the preferred prediction model using the appropriate evaluation metric(s). 
-Describe one setting (in 1-2 sentences) where the implementation of your final model would be useful.
+
+We will be using **Root Mean Square Error (RMSE)** as the appropriate evaluation metric to compare how well the model is predicting against the actual values.
 ```{r}
 rmse(model_1, class4_test)
 rmse(model_2, class4_test)
 ```
- 
+Based on the result, it appears that *Model 1* is a better model in predicting the number of days in a month an individual reported having good physical health because it has a lower RMSE value compared to Model 2.
+
+## Problem 3
+
+One setting where the implementation of *Model 1* would be useful is when we hope to predict a person's overall perceived health in a senior community.  
+
 # Part II: Conducting an Unsupervised Analysis
 
 Using the dataset from the Group assignment Part 3 (USArrests), identify clusters using hierarchical analysis. Use an agglomerative algorithm for hierarchical clustering. Use a Euclidian distance measure to construct your dissimilarity matrix.
@@ -83,16 +100,17 @@ Using the dataset from the Group assignment Part 3 (USArrests), identify cluster
 data("USArrests")
 # Checked no missing data.
 
-# Check means and SDs to determine if scaling is necessary
+# Check means and SDs to determine if scaling is necessary:
 colMeans(USArrests, na.rm = TRUE)
 apply(USArrests, 2, sd, na.rm = TRUE)
-```
-Means and standard deviations are very different from each other. Center and scaling are needed.
-```{r}
+
+# Means and standard deviations are very different from each other. Scaling is needed.
 US_Arrests = scale(USArrests)
 ```
 
-Conduct a hierarchical clustering analysis. Be sure to specify the linkage method used. Within your analysis, make sure you do both of the following:
+## Problem 4
+
+We will be conducting a hierarchical clustering analysis using the ***complete*** linkage.
 ```{r}
 # Create Dissimilarity matrix
 diss.matrix = dist(US_Arrests, method = "euclidean")
@@ -103,16 +121,29 @@ clusters.h = hclust(diss.matrix, method = "complete" )
 # Plot the obtained dendrogram
 plot(clusters.h, cex = 0.6, hang = -1)
 ```
-Determine the optimal number of clusters using a clear, data-driven strategy.
+
+#### a) Determine the optimal number of clusters using ***gap-statistic*** analysis.
 ```{r}
 gap_stat = clusGap(US_Arrests, FUN = hcut, K.max = 10, B = 50)
 fviz_gap_stat(gap_stat)
 ```
 
-Describe the composition of each cluster in terms of the original input features
+Based on the result, the optimal number of clusters is *3*.
+
+#### b) Describe the composition of each cluster in terms of the original input features
 ```{r}
 clusters = kmeans(US_Arrests, 3, nstart = 25)
+
+clusters
 ```
  
+*Cluster 1* has a medium urban population size, but they have the greatest rate in murder, assault, and rape because all the values for each features are positive (>0) and are the highest among all three clusters. 
+*Cluster 2* has the smallest proportion of urban population, as well as the lowest crime rate because all the values for each features are negative (<0) and are the smallest among all three clusters.
+*Cluster 3* has the biggest urban population. Its crime rate (murder, assault, rape) is not the lowest but still lower than average. 
 
-Pretend that the data are from 2020 and not 1973. Describe one research question that can be addressed using the newly identified clusters. Briefly comment on any scientific or ethical considerations one should review before using these clusters for your specific question. NOTE: The clusters can be used as an exposure, an outcome or a covariate.
+## Problem 5
+
+One research question that can be addressed using the newly identified clusters is:
+What are some contributing elements to the high crime rate in the Cluster 1 states?
+
+Before using these clusters for the above research question, we should be careful for not including the state name in the cluster to avoid defaming certain states.
