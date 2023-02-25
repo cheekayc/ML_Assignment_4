@@ -2,7 +2,7 @@
 title: "Assignment 4"
 author: "Chee Kay Cheong (cc4778)"
 date: "2023-02-08"
-output: word_document
+output: github_document
 ---
 
 ```{r setup, message = FALSE, warning = FALSE}
@@ -10,10 +10,12 @@ knitr::opts_chunk$set(message = FALSE, warning = FALSE)
 
 library(tidyverse)
 library(stats)
-library(factoextra)
-library(cluster)
+library(factoextra) # make graphs for clustering 
+library(cluster) # clustering analysis
 library(caret)
 library(modelr)
+library(Amelia) # Can be used to examine missing data using `missmap()`
+library(Metrics)
 
 set.seed(123)
 ```
@@ -39,7 +41,18 @@ class4 = read_csv("./Data/class4_p1.csv") %>%
     dem3 = as_factor(dem3),
     dem4 = as_factor(dem4),
     dem8 = as_factor(dem8),
-    povertygroup = as_factor(povertygroup)) %>% 
+    povertygroup = as_factor(povertygroup))
+
+# Check variable names and types
+str(class4)
+
+# Examine missing data
+missmap(class4)
+# It seems like `habits7` has a lot of missing data, so we will remove this variable from our analysis.
+
+# Limit our data to complete-case analysis
+class4 = class4 %>% 
+  select(-habits7) %>% 
   drop_na()
 ```
 
@@ -59,16 +72,18 @@ Fit two prediction models using  different subsets of the features in the traini
 
 * **Model 1**
   * Outcome: healthydays
-  * Predictors: chronic4, gpaq8totmin, gpaq11days, habits5, habits7 & agegroup
+  * Predictors: chronic4, gpaq8totmin, gpaq11days, habits5 & agegroup
   
 * **Model 2**
   * Outcome: healthydays
-  * Predictors: bmi, tobacco1, alcohol1, habits5 & habits7 
+  * Predictors: bmi, tobacco1, alcohol1, habits5
   
 ```{r models}
-model_1 = lm(healthydays ~ chronic4 + gpaq8totmin + gpaq11days + habits5 + habits7 + agegroup, data = class4_train)
+model_1 = lm(healthydays ~ chronic4 + gpaq8totmin + gpaq11days + habits5 + agegroup, data = class4_train)
+summary(model_1) # Look at the model
 
-model_2 = lm(healthydays ~ bmi + tobacco1 + alcohol1 + habits5 + habits7, data = class4_train)
+model_2 = lm(healthydays ~ bmi + tobacco1 + alcohol1 + habits5, data = class4_train)
+summary(model_2)
 ```
 
 ## Problem 2
@@ -76,13 +91,33 @@ model_2 = lm(healthydays ~ bmi + tobacco1 + alcohol1 + habits5 + habits7, data =
 Apply both models within the test data and determine which model is the preferred prediction model using the appropriate evaluation metric(s). 
 
 We will be using **Root Mean Square Error (RMSE)** as the appropriate evaluation metric to compare how well the model is predicting against the actual values.
-```{r}
+```{r, eval = FALSE}
 rmse(model_1, class4_test)
 rmse(model_2, class4_test)
 ```
 Based on the result, it appears that *Model 1* is a better model in predicting the number of days in a month an individual reported having good physical health because it has a lower RMSE value compared to Model 2.
 
+## Professor's solution
+
+Evaluate prediction model using *Mean Squared Error* and *Simple Scatterplot*.
+
+```{r}
+# Evaluate Model 1 in test set
+fit_1 = predict(model_1, class4_test, type = 'response')
+
+# Compare predicted and observed outcomes to get RMSE and R-squared using `postResample` in `Caret`
+postResample(fit_1, class4_test$healthydays)
+
+# Evaluate Model 2 in test set
+fit_2 = predict(model_2, class4_test, type = 'response')
+
+# Compare predicted and observed outcomes to get RMSE and R-squared using `postResample` in `Caret`
+postResample(fit_2, class4_test$healthydays)
+```
+
 ## Problem 3
+
+In current state, both models are not very useful because they don't describe a lot of variance in the outcome, and they both have large amount of errors.
 
 One setting where the implementation of *Model 1* would be useful is when we hope to predict a person's overall perceived health in a senior community.  
 
@@ -107,6 +142,8 @@ US_Arrests = scale(USArrests)
 
 We will be conducting a hierarchical clustering analysis using the ***complete*** linkage.
 ```{r}
+set.seed(123)
+
 # Create Dissimilarity matrix
 diss.matrix = dist(US_Arrests, method = "euclidean")
 
@@ -116,6 +153,73 @@ clusters.h = hclust(diss.matrix, method = "complete" )
 # Plot the obtained dendrogram
 plot(clusters.h, cex = 0.6, hang = -1)
 ```
+
+### Professor's note: Different linkage options
+
+We can do Hierarchical clustering using different linkage options:                                                                                                                 
+* Complete ~ can be sensitive to outliers as it is dependent upon distance between farthest point within the clusters. Typically creates nice spherical clusters.                                                               
+* Single ~ can result in "chaining" clusters, due to focus only on closest points between clusters. Can lead to chain of points extended for long distances without consideration of
+  overall shape of the cluster. 
+  
+* Average ~ less affected by outliers, prevents chaining that can occur in 'Single'.
+
+```{r}
+# Complete 
+hc1 = hclust(diss.matrix, method = "complete")
+
+# Single 
+hc2 = hclust(diss.matrix, method = "single")
+
+# Average
+hc3 = hclust(diss.matrix, method = "average")
+```
+
+Plot each dendrogram
+```{r}
+plot(hc1, cex = 0.6, hang = -1)
+plot(hc2, cex = 0.6, hang = -1)
+plot(hc3, cex = 0.6, hang = -1)
+```
+
+### Professor's note: Different methods to obtain optimal number of clusters
+
+There are different ways to determine the optimal number of clusters:
+* Elbow Plot ~ Not the best method because it is not clear what linkage methods was used. We need to match the linkage methods we used to create the dendrogram.
+```{r}
+# use the `fviz_nbclust` function but must put in scaled dataset, not the dissimilarity matrix.
+fviz_nbclust(US_Arrests, FUN = hcut, method = "wss")
+fviz_nbclust(US_Arrests, FUN = hcut, method = "silhouette")
+```
+
+* Gap Statistic
+```{r}
+mydist = function(x) dist(x, method = "euclidean")
+
+# Complete
+mycluster_c = function(x, k) list(cluster = cutree(hclust(mydist(x), method = "complete"), k = k))
+gap_stat_c = clusGap(US_Arrests, FUN = mycluster_c, K.max = 10, B = 50)
+fviz_gap_stat(gap_stat_c)
+
+# Average
+mycluster_a = function(x, k) list(cluster = cutree(hclust(mydist(x), method = "average"), k = k))
+gap_stat_a = clusGap(US_Arrests, FUN = mycluster_a, K.max = 10, B = 50)
+fviz_gap_stat(gap_stat_a)
+
+# Single: do the same, just change method to "single"
+```
+
+The "Complete" linkage methods identified 4 clusters as optimal. If we look at the plot, we can see that it picks 2 as the optimal number but it actually peaks at 4. Meaning 4 clusters will make the clusters as homogeneous as possible.
+
+For "Average" linkage, again it picks 2 as local optimal number of clusters, but we can see from the plot that 5 is the optimal number.
+
+Next, go back to the original dendrogram and cut it at 4 using `cutree` function, and then aggregate the groups and give us the mean of each groups.
+```{r}
+groups_c = cutree(hc1, 4)
+aggregate(US_Arrests, list(groups_c), mean)
+```
+
+Interpretation: Any values above 0 means they are above average; below 0 means below average.
+
 
 #### a) Determine the optimal number of clusters using ***gap-statistic*** analysis.
 ```{r}
@@ -142,3 +246,11 @@ One research question that can be addressed using the newly identified clusters 
 What are some contributing elements to the high crime rate in the Cluster 1 states?
 
 Before using these clusters for the above research question, we should be careful for not including the state name in the cluster to avoid defaming certain states.
+
+#### Professor's note
+
+Does the violence profiles of a state predict greater incidence of adverse birth outcomes?
+
+Do states with similar violence profiles have similar criminal justice policies at the state-level?
+
+Do gun-owners have greater feelings of individual safety, controlling for the violence profile of the state of residence?

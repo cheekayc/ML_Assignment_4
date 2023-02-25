@@ -8,23 +8,15 @@ knitr::opts_chunk$set(message = FALSE, warning = FALSE)
 
 library(tidyverse)
 library(stats)
-library(factoextra)
-library(cluster)
+library(factoextra) # make graphs for clustering 
+library(cluster) # clustering analysis
 library(caret)
 library(modelr)
+library(Amelia) # Can be used to examine missing data using `missmap()`
+library(Metrics)
 
 set.seed(123)
 ```
-
-Note: You must turn in an R-Markdown word document with your code and
-generated output clearly labeled. Make sure all answers to specific
-questions are clearly labeled. Do not just turn in unannotated output.
-This assignment builds upon group work from class. You can consult with
-fellow students on strategies, but the document you turn in must be your
-own, individual work. Group members cannot turn in the same R-markdown
-word document.
-
-REMEMBER TO SET YOUR SEED USING 123 TO ENSURE REPRODUCIBLE RESULTS.
 
 # Part I: Implementing a Simple Prediction Pipeline
 
@@ -53,7 +45,43 @@ class4 = read_csv("./Data/class4_p1.csv") %>%
     dem3 = as_factor(dem3),
     dem4 = as_factor(dem4),
     dem8 = as_factor(dem8),
-    povertygroup = as_factor(povertygroup)) %>% 
+    povertygroup = as_factor(povertygroup))
+
+# Check variable names and types
+str(class4)
+```
+
+    ## tibble [3,811 × 16] (S3: tbl_df/tbl/data.frame)
+    ##  $ chronic1    : Factor w/ 2 levels "1","2": 2 2 1 2 2 1 1 1 1 2 ...
+    ##  $ chronic3    : Factor w/ 2 levels "1","2": 2 2 1 2 2 1 1 1 1 2 ...
+    ##  $ chronic4    : Factor w/ 2 levels "1","2": 2 2 2 1 2 2 2 2 2 2 ...
+    ##  $ bmi         : num [1:3811] 26.8 28.2 39.2 42.5 22.3 ...
+    ##  $ tobacco1    : Factor w/ 3 levels "1","2","3": 3 3 1 3 3 3 3 3 3 2 ...
+    ##  $ alcohol1    : Factor w/ 3 levels "1","2","3": 3 3 2 3 NA 2 2 3 2 2 ...
+    ##  $ gpaq8totmin : num [1:3811] 0 120 60 180 0 0 0 0 15 0 ...
+    ##  $ gpaq11days  : num [1:3811] 5 5 3 5 7 7 7 5 5 7 ...
+    ##  $ habits5     : Factor w/ 4 levels "1","2","3","4": 3 1 1 2 2 3 2 3 4 2 ...
+    ##  $ habits7     : Factor w/ 5 levels "1","2","3","4",..: NA NA NA NA NA NA NA NA NA NA ...
+    ##  $ agegroup    : Factor w/ 4 levels "1","2","3","4": 1 3 3 2 2 3 3 4 3 2 ...
+    ##  $ dem3        : Factor w/ 2 levels "1","2": 2 2 1 2 2 1 1 1 2 1 ...
+    ##  $ dem4        : Factor w/ 2 levels "1","2": 1 2 1 1 2 2 1 1 1 1 ...
+    ##  $ dem8        : Factor w/ 2 levels "1","2": 2 2 1 2 2 1 2 2 1 1 ...
+    ##  $ povertygroup: Factor w/ 6 levels "1","2","3","4",..: 1 3 6 2 6 3 4 6 3 1 ...
+    ##  $ healthydays : num [1:3811] 24 30 NA 23 30 30 30 10 0 30 ...
+
+``` r
+# Examine missing data
+missmap(class4)
+```
+
+![](Assignment-4_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
+
+``` r
+# It seems like `habits7` has a lot of missing data, so we will remove this variable from our analysis.
+
+# Limit our data to complete-case analysis
+class4 = class4 %>% 
+  select(-habits7) %>% 
   drop_na()
 ```
 
@@ -75,17 +103,75 @@ training data.
 
 - **Model 1**
   - Outcome: healthydays
-  - Predictors: chronic4, gpaq8totmin, gpaq11days, habits5, habits7 &
-    agegroup
+  - Predictors: chronic4, gpaq8totmin, gpaq11days, habits5 & agegroup
 - **Model 2**
   - Outcome: healthydays
-  - Predictors: bmi, tobacco1, alcohol1, habits5 & habits7
+  - Predictors: bmi, tobacco1, alcohol1, habits5
 
 ``` r
-model_1 = lm(healthydays ~ chronic4 + gpaq8totmin + gpaq11days + habits5 + habits7 + agegroup, data = class4_train)
-
-model_2 = lm(healthydays ~ bmi + tobacco1 + alcohol1 + habits5 + habits7, data = class4_train)
+model_1 = lm(healthydays ~ chronic4 + gpaq8totmin + gpaq11days + habits5 + agegroup, data = class4_train)
+summary(model_1) # Look at the model
 ```
+
+    ## 
+    ## Call:
+    ## lm(formula = healthydays ~ chronic4 + gpaq8totmin + gpaq11days + 
+    ##     habits5 + agegroup, data = class4_train)
+    ## 
+    ## Residuals:
+    ##      Min       1Q   Median       3Q      Max 
+    ## -29.6808   0.2262   2.2678   3.4599  14.9875 
+    ## 
+    ## Coefficients:
+    ##               Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept) 23.7956026  0.9223038  25.800  < 2e-16 ***
+    ## chronic42    5.1155607  0.6620369   7.727 1.62e-14 ***
+    ## gpaq8totmin -0.0001923  0.0017335  -0.111  0.91166    
+    ## gpaq11days   0.1725178  0.0598633   2.882  0.00399 ** 
+    ## habits52    -0.4034122  0.3551431  -1.136  0.25611    
+    ## habits53    -2.9108191  0.4701304  -6.192 7.02e-10 ***
+    ## habits54    -6.8109230  0.7836210  -8.692  < 2e-16 ***
+    ## agegroup2   -1.1090186  0.6190408  -1.792  0.07334 .  
+    ## agegroup3   -2.4858970  0.6065181  -4.099 4.30e-05 ***
+    ## agegroup4   -3.1559411  0.6439072  -4.901 1.02e-06 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Residual standard error: 7.469 on 2332 degrees of freedom
+    ## Multiple R-squared:  0.1041, Adjusted R-squared:  0.1006 
+    ## F-statistic:  30.1 on 9 and 2332 DF,  p-value: < 2.2e-16
+
+``` r
+model_2 = lm(healthydays ~ bmi + tobacco1 + alcohol1 + habits5, data = class4_train)
+summary(model_2)
+```
+
+    ## 
+    ## Call:
+    ## lm(formula = healthydays ~ bmi + tobacco1 + alcohol1 + habits5, 
+    ##     data = class4_train)
+    ## 
+    ## Residuals:
+    ##      Min       1Q   Median       3Q      Max 
+    ## -29.0612   0.6849   2.5226   3.3398  12.4275 
+    ## 
+    ## Coefficients:
+    ##             Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept) 29.30450    1.17756  24.886  < 2e-16 ***
+    ## bmi         -0.07919    0.02564  -3.089  0.00203 ** 
+    ## tobacco12    0.62195    0.81982   0.759  0.44814    
+    ## tobacco13    1.56223    0.51370   3.041  0.00238 ** 
+    ## alcohol12   -0.15980    0.94557  -0.169  0.86581    
+    ## alcohol13   -1.60115    0.92293  -1.735  0.08290 .  
+    ## habits52    -0.36877    0.36163  -1.020  0.30795    
+    ## habits53    -3.13548    0.47706  -6.573 6.08e-11 ***
+    ## habits54    -7.45333    0.78912  -9.445  < 2e-16 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Residual standard error: 7.583 on 2333 degrees of freedom
+    ## Multiple R-squared:  0.07613,    Adjusted R-squared:  0.07296 
+    ## F-statistic: 24.03 on 8 and 2333 DF,  p-value: < 2.2e-16
 
 ## Problem 2
 
@@ -98,22 +184,46 @@ the actual values.
 
 ``` r
 rmse(model_1, class4_test)
-```
-
-    ## [1] 7.218366
-
-``` r
 rmse(model_2, class4_test)
 ```
-
-    ## [1] 7.401421
 
 Based on the result, it appears that *Model 1* is a better model in
 predicting the number of days in a month an individual reported having
 good physical health because it has a lower RMSE value compared to Model
 2.
 
+## Professor’s solution
+
+Evaluate prediction model using *Mean Squared Error* and *Simple
+Scatterplot*.
+
+``` r
+# Evaluate Model 1 in test set
+fit_1 = predict(model_1, class4_test, type = 'response')
+
+# Compare predicted and observed outcomes to get RMSE and R-squared using `postResample` in `Caret`
+postResample(fit_1, class4_test$healthydays)
+```
+
+    ##       RMSE   Rsquared        MAE 
+    ## 7.37794736 0.07027228 4.79419804
+
+``` r
+# Evaluate Model 2 in test set
+fit_2 = predict(model_2, class4_test, type = 'response')
+
+# Compare predicted and observed outcomes to get RMSE and R-squared using `postResample` in `Caret`
+postResample(fit_2, class4_test$healthydays)
+```
+
+    ##       RMSE   Rsquared        MAE 
+    ## 7.48485874 0.04434194 4.91427046
+
 ## Problem 3
+
+In current state, both models are not very useful because they don’t
+describe a lot of variance in the outcome, and they both have large
+amount of errors.
 
 One setting where the implementation of *Model 1* would be useful is
 when we hope to predict a person’s overall perceived health in a senior
@@ -157,6 +267,8 @@ We will be conducting a hierarchical clustering analysis using the
 ***complete*** linkage.
 
 ``` r
+set.seed(123)
+
 # Create Dissimilarity matrix
 diss.matrix = dist(US_Arrests, method = "euclidean")
 
@@ -167,7 +279,124 @@ clusters.h = hclust(diss.matrix, method = "complete" )
 plot(clusters.h, cex = 0.6, hang = -1)
 ```
 
-![](Assignment-4_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](Assignment-4_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
+### Professor’s note: Different linkage options
+
+We can do Hierarchical clustering using different linkage options:  
+\* Complete \~ can be sensitive to outliers as it is dependent upon
+distance between farthest point within the clusters. Typically creates
+nice spherical clusters.  
+\* Single \~ can result in “chaining” clusters, due to focus only on
+closest points between clusters. Can lead to chain of points extended
+for long distances without consideration of overall shape of the
+cluster.
+
+- Average \~ less affected by outliers, prevents chaining that can occur
+  in ‘Single’.
+
+``` r
+# Complete 
+hc1 = hclust(diss.matrix, method = "complete")
+
+# Single 
+hc2 = hclust(diss.matrix, method = "single")
+
+# Average
+hc3 = hclust(diss.matrix, method = "average")
+```
+
+Plot each dendrogram
+
+``` r
+plot(hc1, cex = 0.6, hang = -1)
+```
+
+![](Assignment-4_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+
+``` r
+plot(hc2, cex = 0.6, hang = -1)
+```
+
+![](Assignment-4_files/figure-gfm/unnamed-chunk-8-2.png)<!-- -->
+
+``` r
+plot(hc3, cex = 0.6, hang = -1)
+```
+
+![](Assignment-4_files/figure-gfm/unnamed-chunk-8-3.png)<!-- -->
+
+### Professor’s note: Different methods to obtain optimal number of clusters
+
+There are different ways to determine the optimal number of clusters: \*
+Elbow Plot \~ Not the best method because it is not clear what linkage
+methods was used. We need to match the linkage methods we used to create
+the dendrogram.
+
+``` r
+# use the `fviz_nbclust` function but must put in scaled dataset, not the dissimilarity matrix.
+fviz_nbclust(US_Arrests, FUN = hcut, method = "wss")
+```
+
+![](Assignment-4_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+
+``` r
+fviz_nbclust(US_Arrests, FUN = hcut, method = "silhouette")
+```
+
+![](Assignment-4_files/figure-gfm/unnamed-chunk-9-2.png)<!-- -->
+
+- Gap Statistic
+
+``` r
+mydist = function(x) dist(x, method = "euclidean")
+
+# Complete
+mycluster_c = function(x, k) list(cluster = cutree(hclust(mydist(x), method = "complete"), k = k))
+gap_stat_c = clusGap(US_Arrests, FUN = mycluster_c, K.max = 10, B = 50)
+fviz_gap_stat(gap_stat_c)
+```
+
+![](Assignment-4_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+
+``` r
+# Average
+mycluster_a = function(x, k) list(cluster = cutree(hclust(mydist(x), method = "average"), k = k))
+gap_stat_a = clusGap(US_Arrests, FUN = mycluster_a, K.max = 10, B = 50)
+fviz_gap_stat(gap_stat_a)
+```
+
+![](Assignment-4_files/figure-gfm/unnamed-chunk-10-2.png)<!-- -->
+
+``` r
+# Single: do the same, just change method to "single"
+```
+
+The “Complete” linkage methods identified 4 clusters as optimal. If we
+look at the plot, we can see that it picks 2 as the optimal number but
+it actually peaks at 4. Meaning 4 clusters will make the clusters as
+homogeneous as possible.
+
+For “Average” linkage, again it picks 2 as local optimal number of
+clusters, but we can see from the plot that 5 is the optimal number.
+
+Next, go back to the original dendrogram and cut it at 4 using `cutree`
+function, and then aggregate the groups and give us the mean of each
+groups.
+
+``` r
+groups_c = cutree(hc1, 4)
+aggregate(US_Arrests, list(groups_c), mean)
+```
+
+    ##   Group.1     Murder    Assault   UrbanPop       Rape
+    ## 1       1  1.4463290  0.9838289 -0.8317925  0.3529110
+    ## 2       2  0.7499801  1.1199128  0.9361748  1.2156432
+    ## 3       3 -0.4400338 -0.4353831  0.3607592 -0.2830385
+    ## 4       4 -1.0579703 -1.1046626 -1.1219527 -1.0251554
+
+Interpretation: Any values above 0 means they are above average; below 0
+means below average.
 
 #### a) Determine the optimal number of clusters using ***gap-statistic*** analysis.
 
@@ -176,7 +405,7 @@ gap_stat = clusGap(US_Arrests, FUN = hcut, K.max = 10, B = 50)
 fviz_gap_stat(gap_stat)
 ```
 
-![](Assignment-4_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+![](Assignment-4_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
 Based on the result, the optimal number of clusters is *3*.
 
@@ -245,3 +474,14 @@ in the Cluster 1 states?
 Before using these clusters for the above research question, we should
 be careful for not including the state name in the cluster to avoid
 defaming certain states.
+
+#### Professor’s note
+
+Does the violence profiles of a state predict greater incidence of
+adverse birth outcomes?
+
+Do states with similar violence profiles have similar criminal justice
+policies at the state-level?
+
+Do gun-owners have greater feelings of individual safety, controlling
+for the violence profile of the state of residence?
